@@ -14,7 +14,7 @@ applyAssociations();
 
 
 app.use(cors({
-  origin: "http://localhost:5173", // frontend adresi
+  origin: "http://a48scckgk8ogcogc04440ok8.217.18.210.179.sslip.io/ ", // frontend adresi
   credentials: true               // cookie veya auth header gerekiyorsa
 }));
 
