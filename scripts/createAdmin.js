@@ -14,32 +14,50 @@ const createAdminUser = async () => {
     await sequelize.authenticate();
     console.log('Veritabanı bağlantısı başarılı.');
 
-    // Kullanıcıdan bilgileri al
-    rl.question('Admin kullanıcı adını girin: ', (username) => {
-      rl.question('Admin şifresini girin: ', async (password) => {
-        if (!username || !password) {
-          console.error('Kullanıcı adı ve şifre boş olamaz.');
-          rl.close();
-          return;
-        }
+    // Adım adım kullanıcıdan bilgileri al
+    rl.question('Admin Adı Soyadı: ', (name) => {
+      rl.question('Admin Kullanıcı Adı: ', (username) => {
+        rl.question('Admin Şifresi: ', (password) => {
+          rl.question('Admin Telefon Numarası (opsiyonel, boş bırakılabilir): ', async (phone) => {
 
-        // Sequelize modeli ile kullanıcı oluştur. 
-        // Bu yöntem şifreyi otomatik olarak hash'leyecektir!
-        const adminUser = await User.create({
-          username: username.trim(),
-          password: password,
-          role: 'Admin', // Rol dokümandaki gibi 'Admin' [cite: 27]
-          status: 'true' // Aktif kullanıcı
+            if (!name || !username || !password) {
+              console.error('Hata: Ad Soyad, Kullanıcı Adı ve Şifre alanları boş olamaz.');
+              rl.close();
+              process.exit(1); // Hata ile çık
+            }
+
+            // Sequelize modeli ile kullanıcı oluştur.
+            // Bu yöntem şifreyi otomatik olarak hash'leyecektir!
+            const adminUser = await User.create({
+              name: name.trim(),
+              username: username.trim(),
+              password: password,
+              phone: phone.trim(),
+              role: 'Admin', // Admin rolü, sistemdeki en yetkili roldür [cite: 1]
+              status: true, // Veritabanı boolean tipine uygun
+              kurum_id: null,
+              mintika_id: null,
+              cruser: username.trim(), // İlk kaydı kendisi oluşturduğu için
+              crtdate: new Date()
+            });
+
+            console.log(`✅ '${adminUser.username}' adlı Admin kullanıcısı başarıyla oluşturuldu.`);
+            rl.close();
+            process.exit(0); // Başarı ile çık
+
+          });
         });
-
-        console.log(`✅ '${adminUser.username}' adlı Admin kullanıcısı başarıyla oluşturuldu.`);
-        rl.close();
       });
     });
 
   } catch (error) {
-    console.error('❌ Admin oluşturulurken bir hata oluştu:', error);
+    if (error.name === 'SequelizeUniqueConstraintError') {
+        console.error(`❌ Hata: '${error.errors[0].value}' kullanıcı adı zaten mevcut.`);
+    } else {
+        console.error('❌ Admin oluşturulurken bir hata oluştu:', error);
+    }
     rl.close();
+    process.exit(1); // Hata ile çık
   }
 };
 
