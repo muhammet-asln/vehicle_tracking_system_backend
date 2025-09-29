@@ -14,7 +14,7 @@ applyAssociations();
 
 
 app.use(cors({
-  origin:  "https://app.aractakip.site", 
+  origin:  "https://api.aractakip.site", // localhost:3000
   credentials: true             
 }));
 
@@ -24,8 +24,8 @@ app.get('/', (req, res) => {
 
 app.use('/api/users/', userRoutes);
 app.use('/api/auth/', authRoutes);
-app.use('/api/mintikalar', mintikaRoutes); // YENİ
-app.use('/api/kurumlar', kurumRoutes);   // YENİ
+app.use('/api/mintikalar', mintikaRoutes);
+app.use('/api/kurumlar', kurumRoutes);   
 app.use('/api/vehicles', vehicleRoutes);
 
 
