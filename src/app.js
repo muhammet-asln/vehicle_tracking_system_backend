@@ -14,7 +14,7 @@ applyAssociations();
 
 
 app.use(cors({
-  origin:  "https://api.aractakip.site/", // localhost:3000
+  origin:  "https://ap.aractakip.site/", // localhost:3000
   credentials: true             
 }));
 
