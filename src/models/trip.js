@@ -60,7 +60,7 @@ const Trip = sequelize.define('Trip', {
     last_photo: { // Teslim ederkenki fotoğrafın yolu
         type: DataTypes.STRING,
     },
-    cruser: {
+    crtuser: {
         type: DataTypes.STRING,
     },
     crtdate: {

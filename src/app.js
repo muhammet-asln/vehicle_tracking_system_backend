@@ -14,8 +14,8 @@ applyAssociations();
 
 
 app.use(cors({
-  origin: "http://a48scckgk8ogcogc04440ok8.217.18.210.179.sslip.io", // frontend adresi
-  credentials: true               // cookie veya auth header gerekiyorsa
+  origin:  "https://app.aractakip.site", 
+  credentials: true             
 }));
 
 app.get('/', (req, res) => {
