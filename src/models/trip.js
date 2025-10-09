@@ -21,7 +21,7 @@ const Trip = sequelize.define('Trip', {
         type: DataTypes.INTEGER,
         references: { model: 'users', key: 'id' }
     },
-    triptype: {
+    trip_type: {
         type: DataTypes.ENUM('assigned', 'requested'),
         allowNull: false,
     },

@@ -92,7 +92,7 @@ export const createPlannedTrip = async (tripData, requester) => {
     const newTrip = await Trip.create({
         user_id, vehicle_id, destination, reason, description, start_date, return_estimate,
         assigned_by: requester.id,
-        triptype: 'assigned',
+        trip_type: 'assigned',
         crtuser: requester.username,
         crtdate: new Date()
     });
@@ -166,7 +166,7 @@ export const createRequestedTrip = async (tripData, requester) => {
         vehicle_id, destination,  return_estimate, reason, description,
         user_id: requester.id,
         assigned_by: requester.id,
-        triptype: 'requested',
+        trip_type: 'requested',
         crtuser: requester.username,
         crtdate: new Date()
     });
