@@ -17,47 +17,46 @@ const Trip = sequelize.define('Trip', {
         allowNull: false,
         references: { model: 'vehicle', key: 'id' }
     },
-    // Senaryoya göre eklendi: 'PLAN' (Yönetici planladı), 'REQUEST' (Kullanıcı talep etti)
-    trip_type: {
-        type: DataTypes.ENUM('PLAN', 'REQUEST'),
+    assigned_by: {
+        type: DataTypes.INTEGER,
+        references: { model: 'users', key: 'id' }
+    },
+    triptype: {
+        type: DataTypes.ENUM('assigned', 'requested'),
         allowNull: false,
     },
-    // Senaryoya göre eklendi: Yolculuğun yaşam döngüsünü takip eder
-    status: {
-        type: DataTypes.ENUM('Planned', 'Requested', 'Active', 'Completed', 'Cancelled'),
-        allowNull: false,
+   status: {
+        type: DataTypes.VIRTUAL,
+        get() {
+            // Eğer enddate doluysa 'completed', boşsa 'active' dönder.
+            return this.enddate ? 'completed' : 'active';
+        },
     },
-    destination: { // Gidilecek yer/güzergah
+        
+    destination: {
         type: DataTypes.STRING,
     },
-    reason: { // Seyahat amacı
+    reason: {
         type: DataTypes.STRING,
     },
-    description: { // Ek açıklamalar
+    description: {
         type: DataTypes.TEXT,
     },
-    request_date: { // Kullanıcının talep oluşturduğu tarih
+    start_date: {
         type: DataTypes.DATE,
     },
-    assigned_date: { // Yöneticinin atamayı yaptığı/onayladığı tarih
+    end_date: {
         type: DataTypes.DATE,
     },
-    return_estimate: { // Tahmini dönüş tarihi
+   
+    return_estimate: {
         type: DataTypes.DATE,
     },
-    return_date: { // Gerçekleşen dönüş tarihi
-        type: DataTypes.DATE,
-    },
-    start_km: { // Senaryoya göre eklendi: Teslim alırkenki KM
-        type: DataTypes.INTEGER,
-    },
-    end_km: { // Senaryoya göre eklendi: Teslim ederkenki KM
-        type: DataTypes.INTEGER,
-    },
-    first_photo: { // Teslim alırkenki fotoğrafın yolu
+  
+    first_photo: {
         type: DataTypes.STRING,
     },
-    last_photo: { // Teslim ederkenki fotoğrafın yolu
+    last_photo: {
         type: DataTypes.STRING,
     },
     crtuser: {
@@ -67,6 +66,7 @@ const Trip = sequelize.define('Trip', {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW,
     },
+    
 }, {
     tableName: 'trip',
     timestamps: false,
