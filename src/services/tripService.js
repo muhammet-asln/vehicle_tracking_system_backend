@@ -20,7 +20,28 @@ export const checkVehicleAvailability = async ( id, req, res, ) => {
     
         return res.status(400).json(response);    
     }
-
+    // Araç ID'si sağlanmış, 
+    // yetki kontrolü 
+    if (req.user.role === 'Mıntıka Yöneticisi' || req.user.role === 'Kurum Yöneticisi' || req.user.role === 'Kullanıcı') {
+        try {
+            const vehicle = await Vehicle.findByPk(vehicle_id, { include: [Kurum] });
+            if (!vehicle) {
+                return res.status(404).json({ message: 'Belirtilen araç bulunamadı.', success: false });
+            }   
+            if (req.user.role === 'Mıntıka Yöneticisi' && vehicle.Kurum.mintika_id !== req.user.mintika_id) {
+                return res.status(403).json({ message: 'Yasaklandı: Sadece kendi mıntıkanızdaki araçları talep edebilirsiniz.', success: false });
+            }
+            if (req.user.role === 'Kurum Yöneticisi' && vehicle.kurum_id !== req.user.kurum_id) {
+                return res.status(403).json({ message: 'Yasaklandı: Sadece kendi kurumunuzdaki araçları talep edebilirsiniz.', success: false });
+            }
+            if (req.user.role === 'Kullanıcı' && vehicle.kurum_id !== req.user.kurum_id) {
+                return res.status(403).json({ message: 'Yasaklandı: Sadece kendi kurumunuza ait araçları talep edebilirsiniz.', success: false });
+            }
+        } catch (error) {
+            console.error('Araç yetki kontrolü hatası:', error);
+            return res.status(500).json({ message: error.message, success: false });
+        }
+    }
     try {
         // 1. ADIM: Aracın kendi durumunu kontrol et.
         const vehicle = await Vehicle.findByPk(vehicle_id);

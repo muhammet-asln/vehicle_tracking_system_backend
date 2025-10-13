@@ -29,7 +29,7 @@ const Trip = sequelize.define('Trip', {
         type: DataTypes.VIRTUAL,
         get() {
             // Eğer enddate doluysa 'completed', boşsa 'active' dönder.
-            return this.enddate ? 'completed' : 'active';
+            return this.end_date ? 'completed' : 'active';
         },
     },
         

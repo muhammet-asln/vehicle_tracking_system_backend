@@ -7,7 +7,7 @@ const router = express.Router();
 // Sadece Admin rolüne sahip kullanıcılar bu endpoint'lere erişebilir
 router.route('/')
     .post(authenticate, authorize('Admin', 'Mıntıka Yöneticisi'), createKurum)
-    .get(authenticate, authorize('Admin'), getAllKurumlar);
+    .get(authenticate, authorize('Admin','Mıntıka Yöneticisi'), getAllKurumlar);
 router.route('/:id')
     .get(authenticate, authorize('Admin', 'Mıntıka Yöneticisi', 'Kurum Yöneticisi'), getKurumById)
     .put(authenticate, authorize('Admin', 'Mıntıka Yöneticisi'), updateKurum)

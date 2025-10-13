@@ -1,4 +1,4 @@
-import { Kurum  } from '../models/index.js';
+import { Kurum,Mintika  } from '../models/index.js';
 
 /**
  * Yeni bir kurum oluşturur ve veritabanına kaydeder.
@@ -42,9 +42,68 @@ export const createKurum = async (kurumData, requester) => {
  * Veritabanındaki tüm kurum kayıtlarını listeler.
  * @returns {Array} - Kurum nesnelerinden oluşan bir dizi.
  */
+
+// Tüm kurumları listeler admin tüm kurumları görebilir mıntıka yöneticisi sadece kendi mıntıkasındaki kurumları görebilir
+/*
 export const getAllKurumlar = async () => {
+    
+
     const kurumlar = await Kurum.findAll();
+
     return kurumlar;
+};
+*/
+
+
+/**
+ * Kurumları listeler. Mıntıka adını da dahil eder ve rol bazlı filtreleme uygular.
+ * Sonucu, iç içe nesneler olmadan düz (flat) bir yapıda döndürür.
+ * @param {object} requester - İsteği yapan, giriş yapmış kullanıcı.
+ * @returns {Promise<Array>} - Düzleştirilmiş kurum nesnelerinden oluşan bir dizi döner.
+ */
+export const getAllKurumlar = async (requester) => {
+    const { role, kurum_id, mintika_id } = requester;
+
+    // 1. Sorgu seçeneklerini hazırla: Mintika modelini dahil et
+    const queryOptions = {
+        include: [{
+            model: Mintika,
+            attributes: ['name'] // Sadece mıntıkanın 'name' alanını istiyoruz
+        }],
+        where: {}
+    };
+
+    // 2. Rol bazlı filtreleme kurallarını uygula
+    // Kural: Mıntıka Yöneticisi sadece kendi mıntıkasındaki kurumları görebilir.
+    if (role === 'Mıntıka Yöneticisi') {
+        queryOptions.where.mintika_id = mintika_id;
+    } 
+    // Kural: Kurum Yöneticisi sadece kendi kurumunu görebilir.
+    else if (role === 'Kurum Yöneticisi') {
+        queryOptions.where.id = kurum_id;
+    }
+    // Admin için ek bir filtreye gerek yok, tüm kurumları görebilir.
+
+    // 3. Veritabanından veriyi çek
+    const kurumlar = await Kurum.findAll(queryOptions);
+
+    // 4. Veriyi "düz" formata dönüştür
+    const flattenedKurumlar = kurumlar.map(kurum => {
+        const kurumJSON = kurum.toJSON();
+        return {
+            id: kurumJSON.id,
+            name: kurumJSON.name,
+            mintika_id: kurumJSON.mintika_id,
+            mintika_name: kurumJSON.Mintika ? kurumJSON.Mintika.name : null,
+            responsible_name: kurumJSON.responsible_name,
+            responsible_phone: kurumJSON.responsible_phone,
+            cruser: kurumJSON.cruser,
+            crtdate: kurumJSON.crtdate
+        };
+    });
+
+    // 5. Düzleştirilmiş ve filtrelenmiş veriyi geri döndür
+    return flattenedKurumlar;
 };
 
 /**
@@ -52,6 +111,7 @@ export const getAllKurumlar = async () => {
  * @param {number} id - Aranacak kurumun ID'si.
  * @returns {object} - Bulunan kurum nesnesi.
  */
+
 export const getKurumById = async (id) => {
     const kurum = await Kurum.findByPk(id);
     if (!kurum) {

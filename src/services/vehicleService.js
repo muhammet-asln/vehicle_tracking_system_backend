@@ -97,7 +97,7 @@ export const getVehicleById = async (id, requester) => {
         throw error;
     }
 
-    // YETKİ KONTROLÜ (Bu kısım aynı)
+    // YETKİ KONTROLÜ
     if (requester.role === 'Mıntıka Yöneticisi' && vehicle.Kurum.mintika_id !== requester.mintika_id) {
         const error = new Error('Yasaklandı: Bu aracı görme yetkiniz yok.');
         error.statusCode = 403;

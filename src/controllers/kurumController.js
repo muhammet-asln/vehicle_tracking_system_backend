@@ -1,4 +1,4 @@
-import { response } from 'express';
+
 import * as kurumService from '../services/index.js';
 
 // Yeni bir kurum oluşturur
@@ -22,7 +22,9 @@ export const createKurum = async (req, res) => {
 };
 
 // Tüm kurumları listeler
+/*
 export const getAllKurumlar = async (req, res) => {
+
     try {
         const kurumlar = await kurumService.getAllKurumlar();
         const response= {
@@ -37,7 +39,30 @@ export const getAllKurumlar = async (req, res) => {
         res.status(500).json({ message: 'Sunucu hatası oluştu.' });
     }
 };
+*/
+export const getAllKurumlar = async (req, res) => {
+    try {
+        // 1. Servisi çağır ve filtrelenmiş/düzleştirilmiş veriyi al
+        const kurumlarData = await kurumService.getAllKurumlar(req.user);
+        
+        // 2. Başarılı yanıtı standart formatta oluştur
+        const response = {
+            success: true,
+            message: "Kurumlar başarıyla getirildi.",
+            data: kurumlarData
+        };
 
+        res.status(200).json(response);
+
+    } catch (error) {
+        console.error('Kurum listeleme hatası:', error);
+        // Hatalı yanıtı standart formatta oluştur
+        res.status(500).json({ 
+            success: false,
+            message: 'Sunucu hatası oluştu.' 
+        });
+    }
+};
 // Belirtilen ID'ye sahip kurumu getirir
 export const getKurumById = async (req, res) => {
     try {
@@ -54,7 +79,7 @@ export const getKurumById = async (req, res) => {
             return res.status(error.statusCode).json({ message: error.message });
         }
         console.error('Kurum detayı getirme hatası:', error);
-        res.status(500).json({ message: 'Sunucu hatası oluştu.' });
+        res.status(500).json({ message: error.message });
     }
 };
 
