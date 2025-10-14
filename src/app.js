@@ -12,11 +12,27 @@ app.use(express.json());
 connectDB();
 applyAssociations(); 
 
+const allowedOrigins = [
+    'https://ap.aractakip.site', 
+    'http://localhost:3000',
+    'http://localhost:5173',      
+    'http://localhost:5173/'
+      
+];
 
-app.use(cors({
-  origin:  "https://ap.aractakip.site", // localhost:3000  http://localhost:3000
-  credentials: true             
-}));
+const corsOptions = {
+    origin: function (origin, callback) {
+        if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+            callback(null, true);
+        } else {
+            callback(new Error('Bu alan tarafından CORS politikasına izin verilmiyor.'));
+        }
+    },
+    credentials: true,
+    optionsSuccessStatus: 200
+};
+
+app.use(cors({corsOptions}));
 
 app.get('/', (req, res) => {
   res.send('Hello World!');
