@@ -32,7 +32,7 @@ const corsOptions = {
     optionsSuccessStatus: 200
 };
 
-app.use(cors({corsOptions}));
+app.use(cors(corsOptions));
 
 app.get('/', (req, res) => {
   res.send('Hello World!');
