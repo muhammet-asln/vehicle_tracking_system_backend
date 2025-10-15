@@ -2,7 +2,7 @@ import { Sequelize } from 'sequelize';
 import "dotenv/config.js";
 
 // .env dosyasından bağlantı cümlesini alarak yeni bir Sequelize instance oluştur
-const sequelize = new Sequelize(process.env.Test_db, { //DATABASE_URL
+const sequelize = new Sequelize(process.env.DATABASE_URL, { //
   dialect: 'postgres',
   protocol: 'postgres',
   
