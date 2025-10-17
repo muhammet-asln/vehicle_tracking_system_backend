@@ -50,7 +50,7 @@ export const login = async (username, password) => {
     const token = jwt.sign(
         payload,
         process.env.JWT_SECRET,
-        { expiresIn: '1m' }
+        { expiresIn: '45m' }
     );
 
     // Controller'a hem token'ı hem de tüm kullanıcı verisini gönder
