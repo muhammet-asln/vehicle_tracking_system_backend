@@ -69,7 +69,7 @@ export const imageService = async (buffer, namingData) => {
     // 8. URL'i döndür
     return fileUrl;
   } catch (error) {
-    console.error(`❌ Görsel işleme veya MinIO yükleme hatası (${fieldName}):`, error);
-    throw new Error(`Resim (${fieldName}) yüklenirken bir hata oluştu.`);
+    console.error(`❌ Görsel işleme veya MinIO yükleme hatası (${fieldName}):`, error.message);
+    throw new Error(`Resim (${fieldName}) yüklenirken bir hata oluştu.`,error.message);
   }
 };
