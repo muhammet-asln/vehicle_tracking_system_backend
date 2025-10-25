@@ -1,49 +1,75 @@
-import sharp from 'sharp';
-import path from 'path';
-import fs from 'fs';
-import { format } from 'date-fns'; // Tarih formatlama için (npm install date-fns)
+import sharp from "sharp";
+import { format } from "date-fns";
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 
-// Fotoğrafların kaydedileceği klasör yolu
-const uploadDir = './uploads/photos';
+// .env'den MinIO bilgilerini al
+const s3 = new S3Client({
+  region: "us-east-1",
+  endpoint: process.env.MINIO_ENDPOINT,
+  forcePathStyle: true, // MinIO için şart
+  credentials: {
+    accessKeyId: process.env.MINIO_ACCESS_KEY,
+    secretAccessKey: process.env.MINIO_SECRET_KEY,
+  },
+});
 
-// Klasör yoksa oluştur
-if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
-}
+const BUCKET = process.env.MINIO_BUCKET;
 
 /**
- * Gelen resim buffer'ını WebP formatına dönüştürür ve özel formatta isimlendirerek kaydeder.
- * İsimlendirme Formatı: GGAYYYYY-userId-vehicleId-first/last-pozisyon.webp
- * @param {Buffer} buffer - Multer tarafından sağlanan dosya buffer'ı.
- * @param {object} namingData - İsimlendirme için gerekli veriler { userId, vehicleId, uploadType ('pickup'/'return'), fieldName ('vehicle_front' etc.) }.
- * @returns {Promise<string>} - Kaydedilen WebP dosyasının sunucudaki yolunu döner.
+ * Fotoğrafı WebP formatına çevirip MinIO'ya yükler.
+ * İsimlendirme Formatı: GGAYYYYY-tripId-last-pozisyon.webp
+ * @param {Buffer} buffer - Multer tarafından gelen dosya buffer'ı
+ * @param {object} namingData - { tripId, fieldName }
+ * @returns {Promise<string>} - Yüklenen dosyanın MinIO URL'i
  */
-export const processAndSaveTripImage = async (buffer, namingData) => {
-    const { userId, vehicleId, uploadType, fieldName } = namingData;
-    try {
-        // 1. Tarih damgasını oluştur (GGAYYYYY)
-        const dateStamp = format(new Date(), 'ddMMyyyy');
+export const imageService = async (buffer, namingData) => {
+  const { tripId, fieldName } = namingData;
 
-        // 2. Yükleme türünü belirle ('first' veya 'last')
-        const typeString = uploadType === 'pickup' ? 'first' : 'last';
+  try {
+    // 1. Tarih damgası
+    const currentDate = format(new Date(), "yyyyMMdd");
+    const folderDate= format(new Date(), "yyyyMM");
 
-        // 3. Pozisyonu belirle ('front', 'back', 'left', 'right', 'inside')
-        const positionString = fieldName.replace('vehicle_', '');
+    // 2. Tür sabit
+    const typeString = "last";
 
-        // 4. Tüm parçaları birleştirerek dosya adını oluştur
-        const filename = `${dateStamp}-${userId}-${vehicleId}-${typeString}-${positionString}.webp`;
-        const filepath = path.join(uploadDir, filename);
+    // 3. Pozisyon (front, back, left, right, inside)
+    const positionString = fieldName.replace("vehicle_", "");
 
-        // 5. Sharp ile resmi işle (WebP'ye dönüştür, kalite ayarla) ve kaydet
-        await sharp(buffer)
-            .webp({ quality: 80 }) // Kalite %80 (isteğe bağlı)
-            .toFile(filepath);
+    // 4. Dosya adı
+    const filename = `${currentDate}-trip${tripId}-${typeString}-${positionString}.webp`;
+    const objectKey = `${folderDate}/${filename}`; // klasör/dosya adı
 
-        // 6. Veritabanına kaydedilecek dosya yolunu döndür
-        return filepath; // Örn: 'uploads/photos/25102025-27-3-first-front.webp'
 
-    } catch (error) {
-        console.error(`Görsel işleme hatası (${fieldName}):`, error);
-        throw new Error(`Resim (${fieldName}) işlenirken veya kaydedilirken bir hata oluştu.`);
-    }
+    // 5. Görseli WebP formatına dönüştür (RAM'de)
+    const webpBuffer = await sharp(buffer)
+      .webp({ quality: 80 })
+      .toBuffer();
+
+    // 6. MinIO'ya yükle
+    const params = {
+      Bucket: BUCKET,
+      Key: objectKey,
+      Body: webpBuffer,
+      ContentType: "image/webp",
+    };
+
+    await s3.send(new PutObjectCommand(params));
+
+    // 7. Erişim URL'sini oluştur
+    // Eğer endpoint başında http yoksa otomatik ekle
+    const dataUrl = process.env.MINIO_ENDPOINT.startsWith("http")
+      ? process.env.MINIO_ENDPOINT
+      :`http://${process.env.MINIO_ENDPOINT}`;
+
+    const fileUrl = `${dataUrl}/${BUCKET}/${filename}`;
+
+    console.log("✅ MinIO'ya yüklendi:", fileUrl);
+
+    // 8. URL'i döndür
+    return fileUrl;
+  } catch (error) {
+    console.error(`❌ Görsel işleme veya MinIO yükleme hatası (${fieldName}):`, error);
+    throw new Error(`Resim (${fieldName}) yüklenirken bir hata oluştu.`);
+  }
 };

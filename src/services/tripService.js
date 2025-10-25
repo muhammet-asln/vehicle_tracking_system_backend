@@ -1,5 +1,6 @@
 
 import { Trip, Vehicle, User, Kurum } from '../models/index.js';
+import { imageService } from './imageService.js';
 import { Op } from 'sequelize';
 // araç faailiyette ve araç diğer aktif bir tripte değilse araci getVehicleById ile getir ve trip oluştur
 
@@ -192,40 +193,15 @@ export const createRequestedTrip = async (tripData, requester) => {
         crtuser: requester.username,
         crtdate: new Date()
     });
-    return newTrip;
+    const returnedTrip = await Trip.findByPk(newTrip.id, {
+        include: [
+            { model: Vehicle, attributes: ['plate', 'brand', 'model', 'category', 'owner_name'] }
+        ]
+    });
+    return  flattenTripData(returnedTrip) ;
 };
-/**
- * Bir yolculuğu başlatır (Teslim Alma). Fotoğraf yollarını JSON string olarak 'first_photo' alanına kaydeder.
- * @param {number} tripId - Başlatılacak yolculuğun ID'si.
- * @param {object} processedPhotos - İşlenmiş fotoğrafların yollarını içeren nesne { vehicle_front: 'yol/...', ... }.
- * @param {object} requester - İsteği yapan kullanıcı.
- * @returns {Promise<object>} - Güncellenmiş trip nesnesi.
- */
-export const pickupVehicle = async (tripId, processedPhotos, requester) => {
-    if (!processedPhotos || Object.keys(processedPhotos).length === 0) {
-        const error = new Error('Teslim alma fotoğrafları zorunludur.');
-        error.statusCode = 400;
-        throw error;
-    }
 
-    const trip = await Trip.findByPk(tripId);
-    if (!trip) { /* ... Hata: Yolculuk bulunamadı ... */ }
-    if (trip.user_id !== requester.id) { /* ... Hata: Yetki yok ... */ }
-    // Mantıksal kontrol: Yolculuk zaten başlamış mı (start_date dolu mu)?
-    // VEYA zaten bitmiş mi (end_date dolu mu)? Bu kontrol önemli!
-    if (trip.start_date !== null || trip.end_date !== null) {
-        const error = new Error('Bu yolculuk zaten başlatılmış veya tamamlanmış.');
-        error.statusCode = 400;
-        throw error;
-    }
 
-    // Yolculuğu başlat ve fotoğraf yollarını JSON string olarak kaydet
-    trip.start_date = new Date(); // Teslim alma zamanı şimdi olarak ayarlanır
-    trip.first_photo = JSON.stringify(processedPhotos);
-    await trip.save();
-
-    return trip;
-};
 /**
  * Aktif bir yolculuğu tamamlar (Aracı Teslim Etme).
  * Bu fonksiyon, trip kaydının 'enddate' alanını doldurarak yolculuğu 'completed' (tamamlanmış) durumuna geçirir.
@@ -235,7 +211,7 @@ export const pickupVehicle = async (tripId, processedPhotos, requester) => {
  * @returns {Promise<object>} - Başarıyla güncellenmiş trip nesnesini bir Promise olarak döner.
  * @throws {Error} - Gerekli alanlar eksikse, yolculuk bulunamazsa, yetki yoksa veya yolculuk zaten tamamlanmışsa hata fırlatır.
  */
-export const completeTrip = async (tripId, returnData,processedPhotos, requester) => {
+export const completeTrip = async ( body,requester , getPhotos ) => {
     // 1. Gelen verileri al
     //const { last_photo, description } = returnData;
 
@@ -246,7 +222,7 @@ export const completeTrip = async (tripId, returnData,processedPhotos, requester
       //  throw error;
    // }
    // Fotoğrafların gelip gelmediğini kontrol et
-   if (!processedPhotos || Object.keys(processedPhotos).length === 0) {
+   if (!getPhotos || Object.keys(getPhotos).length === 0) {
         const error = new Error('Teslim etme fotoğrafları zorunludur.');
         error.statusCode = 400;
         throw error;
@@ -282,7 +258,19 @@ export const completeTrip = async (tripId, returnData,processedPhotos, requester
     }
 
     // 6. Kaydı Güncelle: Yolculuğu 'tamamlanmış' olarak işaretle
-    //  trip.last_photo = last_photo;
+    // fotoğrafları kaydet
+    const processedPhotos = {};
+        // 2. Gelen her bir dosyayı işle
+        for (const fieldName in getPhotos) {
+            const file = getPhotos[fieldName][0];
+             const namingData = {
+                tripId: trip.id,
+                fieldName: fieldName
+            };
+            processedPhotos[fieldName] = await imageService(file.buffer, namingData);
+            //saçma bir şey oldu burda
+        }
+    
    
     trip.end_date = new Date(); // Bu satır, yolculuğun durumunu 'tamamlanmış' yapar.
     

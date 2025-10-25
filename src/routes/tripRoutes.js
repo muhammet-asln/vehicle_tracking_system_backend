@@ -49,7 +49,7 @@ router.post(
  * Yetkili Roller: Kullanıcı
  */
 router.post(
-    '/:id/complete',
+    '/current/complete',
     authenticate,
     authorize('Kullanıcı', 'Admin', 'Mıntıka Yöneticisi', 'Kurum Yöneticisi'),
     uploadTripPhotos,

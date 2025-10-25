@@ -55,11 +55,12 @@ export const assignTrip = async (req, res) => {
  */
 export const requestTrip = async (req, res) => {
     try {
+    
         const newTrip = await tripService.createRequestedTrip(req.body, req.user);
          const response= {
             message: 'Seyahat başarıyla planlandı.',
             data: {
-                ...newTrip.dataValues
+                ...newTrip
             },
             success: true
         }
@@ -101,6 +102,7 @@ export const pickupVehicle = async (req, res) => {
             processedPhotos[fieldName] = await imageService.processAndSaveTripImage(file.buffer, namingData);
         }
 
+
         // 3. Trip servisini çağır (işlenmiş fotoğrafların yollarıyla)
         const updatedTrip = await tripService.pickupVehicle(tripId, {}, processedPhotos, req.user); // req.body'den gelen diğer veriler varsa buraya eklenir ({...req.body})
         res.status(200).json({ message: 'Araç başarıyla teslim alındı.', trip: updatedTrip });
@@ -117,33 +119,22 @@ export const pickupVehicle = async (req, res) => {
  * Gelen isteği ve kullanıcı bilgilerini 'completeTrip' servisine yönlendirir.
  */
 export const completeTrip = async (req, res) => {
-    console.log( req);
+    //console.log( req);
     try {
 
         if (!req.files || Object.keys(req.files).length === 0) {
             return res.status(400).json({ message: 'Teslim etme fotoğrafları eksik.' });
         }
-        const processedPhotos = {};
-        // 2. Gelen her bir dosyayı işle
-        for (const fieldName in req.files) {
-            const file = req.files[fieldName][0];
-             const namingData = {
-                userId: req.user.id,
-                vehicleId: trip.vehicle_id,
-                uploadType: 'return',
-                fieldName: fieldName
-            };
-            processedPhotos[fieldName] = await imageService.processAndSaveTripImage(file.buffer, namingData);
-        }
-        
-
-        const updatedTrip = await tripService.completeTrip(parseInt(req.params.id, 10), req.body, req.user);
+        const updatedTrip = await tripService.completeTrip( req.body, req.user, req.files);
         const respons= {
             message: 'Yolculuk başarıyla tamamlandı.',
             trip: updatedTrip,
             success: true
         }
+        
         res.status(200).json(respons);
+
+        
     } catch (error) {
         if (error.statusCode) {
             return res.status(error.statusCode).json({ message: error.message });
