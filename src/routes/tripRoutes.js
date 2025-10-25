@@ -1,6 +1,6 @@
 import express from 'express';
-import { authenticate, authorize } from '../middlewares/index.js';
-import { assignTrip, requestTrip, completeTrip, selectVehicleById, getCompletedTrips, getMyCurrentTrip,getAllActiveTrips } from '../controllers/index.js';
+import { authenticate, authorize,uploadTripPhotos } from '../middlewares/index.js';
+import { assignTrip, requestTrip, completeTrip, selectVehicleById, getCompletedTrips, getMyCurrentTrip,getAllActiveTrips , pickupVehicle} from '../controllers/index.js';
 
 const router = express.Router();
 router.get('/selectVehicle/:id', authenticate, authorize('Admin', 'Mıntıka Yöneticisi', 'Kurum Yöneticisi', 'Kullanıcı'), selectVehicleById);   
@@ -10,6 +10,7 @@ router.get('/selectVehicle/:id', authenticate, authorize('Admin', 'Mıntıka Yö
  * Endpoint: POST /api/trips/plan
  * Açıklama: Yöneticilerin seyahat planı oluşturmasını sağlar.
  * Yetkili Roller: Admin, Mıntıka Yöneticisi, Kurum Yöneticisi
+ * 
  */
 router.post(
     '/assign',
@@ -30,6 +31,17 @@ router.post(
     authorize('Admin', 'Mıntıka Yöneticisi', 'Kurum Yöneticisi', 'Kullanıcı'),
     requestTrip
 );
+/**
+ * Endpoint: POST /api/trips/:id/pickup
+ * Açıklama: Kullanıcının aracı teslim almasını ve 5 fotoğraf yüklemesini sağlar.
+ */
+router.post(
+    '/:id/pickup',
+    authenticate,
+    authorize('Kullanıcı'),
+    uploadTripPhotos, // Çoklu dosya yükleme middleware'i
+    pickupVehicle
+);
 
 /**
  * Endpoint: POST /api/trips/:id/complete
@@ -40,7 +52,7 @@ router.post(
     '/:id/complete',
     authenticate,
     authorize('Kullanıcı', 'Admin', 'Mıntıka Yöneticisi', 'Kurum Yöneticisi'),
-    //upload.single('last_photo'),
+    uploadTripPhotos,
     completeTrip
 );
 

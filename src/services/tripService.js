@@ -76,6 +76,7 @@ export const checkVehicleAvailability = async ( id, req, res, ) => {
  * @throws {Error} - Gerekli alanlar eksikse veya yetki ihlali varsa hata fırlatır.
  */
 export const createPlannedTrip = async (tripData, requester) => {
+    
     const { user_id, vehicle_id, destination, start_date, return_estimate, reason, description } = tripData;
     if (!user_id || !vehicle_id || !destination || !start_date ) {
         const error = new Error('Kullanıcı, Araç, Güzergah, Başlangıç ve Bitiş tarihleri zorunludur.');
@@ -108,7 +109,7 @@ export const createPlannedTrip = async (tripData, requester) => {
         error.statusCode = 409; // Conflict
         throw error;
     }
-    // Her şey yolundaysa yeni trip oluştur
+    // Her şey yolundaysa yeni trip oluştur (fotoğraflar yok)
 
     const newTrip = await Trip.create({
         user_id, vehicle_id, destination, reason, description, start_date, return_estimate,
@@ -194,6 +195,38 @@ export const createRequestedTrip = async (tripData, requester) => {
     return newTrip;
 };
 /**
+ * Bir yolculuğu başlatır (Teslim Alma). Fotoğraf yollarını JSON string olarak 'first_photo' alanına kaydeder.
+ * @param {number} tripId - Başlatılacak yolculuğun ID'si.
+ * @param {object} processedPhotos - İşlenmiş fotoğrafların yollarını içeren nesne { vehicle_front: 'yol/...', ... }.
+ * @param {object} requester - İsteği yapan kullanıcı.
+ * @returns {Promise<object>} - Güncellenmiş trip nesnesi.
+ */
+export const pickupVehicle = async (tripId, processedPhotos, requester) => {
+    if (!processedPhotos || Object.keys(processedPhotos).length === 0) {
+        const error = new Error('Teslim alma fotoğrafları zorunludur.');
+        error.statusCode = 400;
+        throw error;
+    }
+
+    const trip = await Trip.findByPk(tripId);
+    if (!trip) { /* ... Hata: Yolculuk bulunamadı ... */ }
+    if (trip.user_id !== requester.id) { /* ... Hata: Yetki yok ... */ }
+    // Mantıksal kontrol: Yolculuk zaten başlamış mı (start_date dolu mu)?
+    // VEYA zaten bitmiş mi (end_date dolu mu)? Bu kontrol önemli!
+    if (trip.start_date !== null || trip.end_date !== null) {
+        const error = new Error('Bu yolculuk zaten başlatılmış veya tamamlanmış.');
+        error.statusCode = 400;
+        throw error;
+    }
+
+    // Yolculuğu başlat ve fotoğraf yollarını JSON string olarak kaydet
+    trip.start_date = new Date(); // Teslim alma zamanı şimdi olarak ayarlanır
+    trip.first_photo = JSON.stringify(processedPhotos);
+    await trip.save();
+
+    return trip;
+};
+/**
  * Aktif bir yolculuğu tamamlar (Aracı Teslim Etme).
  * Bu fonksiyon, trip kaydının 'enddate' alanını doldurarak yolculuğu 'completed' (tamamlanmış) durumuna geçirir.
  * @param {number} tripId - Tamamlanacak yolculuğun ID'si.
@@ -202,7 +235,7 @@ export const createRequestedTrip = async (tripData, requester) => {
  * @returns {Promise<object>} - Başarıyla güncellenmiş trip nesnesini bir Promise olarak döner.
  * @throws {Error} - Gerekli alanlar eksikse, yolculuk bulunamazsa, yetki yoksa veya yolculuk zaten tamamlanmışsa hata fırlatır.
  */
-export const completeTrip = async (tripId, returnData, requester) => {
+export const completeTrip = async (tripId, returnData,processedPhotos, requester) => {
     // 1. Gelen verileri al
     //const { last_photo, description } = returnData;
 
@@ -212,6 +245,12 @@ export const completeTrip = async (tripId, returnData, requester) => {
      //   error.statusCode = 400;
       //  throw error;
    // }
+   // Fotoğrafların gelip gelmediğini kontrol et
+   if (!processedPhotos || Object.keys(processedPhotos).length === 0) {
+        const error = new Error('Teslim etme fotoğrafları zorunludur.');
+        error.statusCode = 400;
+        throw error;
+    }
 
     // 3. Veritabanından ilgili yolculuk kaydını bul
    const trip = await Trip.findOne({
