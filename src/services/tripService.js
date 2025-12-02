@@ -1,7 +1,8 @@
 
-import { Trip, Vehicle, User, Kurum } from '../models/index.js';
+import { Trip, Vehicle, User, Kurum,Mintika } from '../models/index.js';
 import { imageService } from './imageService.js';
 import { Op } from 'sequelize';
+import  {FileLog} from "../models/index.js";
 // araç faailiyette ve araç diğer aktif bir tripte değilse araci getVehicleById ile getir ve trip oluştur
 
 
@@ -271,7 +272,19 @@ export const completeTrip = async ( body,requester , getPhotos ) => {
             //saçma bir şey oldu burda
         }
     
-   
+    console.log('✅ Tüm fotoğraflar işlendi ve yüklendi:', processedPhotos);
+    //DB de Dosya log kaydı oluştur
+    await FileLog.create({
+        trip_id: trip.id,
+        vehicle_front: processedPhotos['vehicle_front'] || null,
+        vehicle_back: processedPhotos['vehicle_back'] || null,
+        vehicle_left: processedPhotos['vehicle_left'] || null,
+        vehicle_right: processedPhotos['vehicle_right'] || null,
+        vehicle_inside: processedPhotos['vehicle_inside'] || null,
+        type: 'last',
+        crtuser: requester.username,
+        crtdate: new Date()
+    });
     trip.end_date = new Date(); // Bu satır, yolculuğun durumunu 'tamamlanmış' yapar.
     
     // 7. Değişiklikleri kaydet
@@ -329,16 +342,88 @@ export const getCurrentTrip = async (requester) => {
     return flattenTripData(trip); // Düzleştirilmiş veriyi döndür
 };
 
+
+// src/services/tripService.js dosyana bu fonksiyonu güncelle/ekle
+
 /**
- * Tüm aktif yolculukları, isteği yapanın rolüne göre filtreleyerek listeler.
+ * Tüm aktif (tamamlanmamış) seyahatleri listeler.
+ * İsteği yapanın rolüne göre otomatik filtreleme yapar.
  */
 export const getAllActiveTrips = async (requester) => {
-    // ... (queryOptions'ı ve filtrelemeyi önceki gibi yapıyoruz) ...
-    
-    const trips = await Trip.findAll(queryOptions);
+    const { role, kurum_id, mintika_id, id: userId } = requester;
 
-    // Dönen dizideki her bir elemanı düzleştir
-    return trips.map(trip => flattenTripData(trip));
+    // Temel Sorgu: Bitiş tarihi (end_date) henüz NULL olanlar
+    const queryOptions = {
+        where: {
+            end_date: null 
+        },
+        include: [
+            {
+                model: User,
+                attributes: ['id', 'name', 'username', 'phone'] // Kullanıcı detayları
+            },
+            {
+                model: Vehicle,
+                attributes: ['id', 'plate', 'brand', 'model', 'type'],
+                required: true, // Araç olmadan trip olmaz (Inner Join)
+                include: [
+                    {
+                        model: Kurum,
+                        attributes: ['id', 'name', 'mintika_id'],
+                        required: true,
+                        include: [{
+                             model: Mintika,
+                             attributes: ['id', 'name']
+                        }]
+                    }
+                ]
+            }
+        ],
+        order: [['start_date', 'DESC']] // En yeni seyahat en üstte
+    };
+
+    // --- ROL BAZLI FİLTRELEME ---
+
+    if (role === 'Mıntıka Yöneticisi') {
+        // Sadece kendi mıntıkasındaki kurumların araçlarıyla yapılan seyahatleri görsün
+        queryOptions.include[1].include[0].where = { mintika_id: mintika_id };
+    } 
+    else if (role === 'Kurum Yöneticisi') {
+        // Sadece kendi kurumunun araçlarıyla yapılan seyahatleri görsün
+        queryOptions.include[1].where = { id: kurum_id };
+    }
+    else if (role === 'Kullanıcı') {
+        // Kullanıcı sadece kendi aktif seyahatini (varsa) görebilir.
+        // Genelde "current" endpoint'i kullanılır ama bu listede de kısıtlama yapalım.
+        queryOptions.where.user_id = userId;
+    }
+    // Admin için filtre yok, hepsini görür.
+
+    // Sorguyu çalıştır
+    const trips = await Trip.findAll(queryOptions);
+    
+    // Veriyi ön yüz için düzleştir (Flatten) ve istenen formatta döndür
+    //return trips.map(trip => flattenTripData(trip)); bu format da kullanılabilir  ama geerekli ve minimal format aşağıdaki gibi daha sade
+
+
+    return trips.map(trip => {
+        const plainTrip = trip.toJSON();
+        return {
+            id: plainTrip.id,
+            user_name: plainTrip.User?.name,
+            user_phone: plainTrip.User?.phone,
+            plate: plainTrip.Vehicle?.plate,
+            vehicle_info: `${plainTrip.Vehicle?.brand} ${plainTrip.Vehicle?.model}`,
+            kurum_name: plainTrip.Vehicle?.Kurum?.name,
+            mintika_name: plainTrip.Vehicle?.Kurum?.Mintika?.name,
+            destination: plainTrip.destination,
+            start_date: plainTrip.start_date,
+            return_estimate: plainTrip.return_estimate,
+            reason: plainTrip.reason,
+            description: plainTrip.description,
+            trip_type: plainTrip.trip_type
+        };
+    });
 };
 
 // ... Diğer servis fonksiyonları da benzer şekilde 'flattenTripData' kullanacak şekilde güncellenebilir.
@@ -347,46 +432,88 @@ export const getAllActiveTrips = async (requester) => {
  * @param {object} requester - İsteği yapan, giriş yapmış kullanıcı nesnesi.
  * @returns {Promise<Array>} - Tamamlanmış trip nesnelerinden oluşan bir dizi döner.
  */
+// src/services/tripService.js içindeki fonksiyon
+
 export const getCompletedTrips = async (requester) => {
     const { role, id: requesterId, kurum_id, mintika_id } = requester;
 
-    // Temel sorgu: Sadece tamamlanmış yolculukları (end_date'i dolu olanlar) al.
+    // Temel sorgu: Sadece tamamlanmış yolculukları al.
     const queryOptions = {
         where: {
             end_date: {
-                [Op.not]: null // Op.not, 'IS NOT NULL' anlamına gelir.
+                [Op.not]: null 
             }
         },
         include: [
-            { model: User, attributes: ['id', 'name', 'username'] },
+            { 
+                model: User, 
+                attributes: ['id', 'name'] 
+            },
             { 
                 model: Vehicle, 
                 attributes: ['id', 'plate', 'brand', 'model'],
-                include: [{ model: Kurum, attributes: ['id', 'name'] }] 
+                required: true, // Araç bilgisi zorunlu
+                include: [{ 
+                    model: Kurum, 
+                    attributes: ['id', 'name'],
+                    required: true, // Kurum bilgisi zorunlu
+                    include: [{
+                        model: Mintika, // <--- MINTIKA EKLENDİ
+                        attributes: ['id', 'name'],
+                        required: true
+                    }]
+                }] 
             }
         ],
-        order: [['end_date', 'DESC']] // En yeniden eskiye doğru sırala
+        order: [['end_date', 'DESC']]
     };
 
     // --- YETKİ KURALI: Rol bazlı filtreleme ---
     if (role === 'Kullanıcı') {
-        // YETKİ: Kullanıcı sadece kendi geçmiş seyahatlerini görebilir.
         queryOptions.where.user_id = requesterId;
     } 
     else if (role === 'Kurum Yöneticisi') {
-        // YETKİ: Kurum Yöneticisi sadece kendi kurumundaki seyahatleri görebilir.
-        // Bu sorgu, kurum ID'sine göre araçları filtreler.
-        queryOptions.include[1].where = { kurum_id: kurum_id };
-        queryOptions.include[1].required = true;
+        // Vehicle -> Kurum ilişkisi üzerinden filtreleme
+        // include[1] = Vehicle, include[0] = Kurum
+        queryOptions.include[1].include[0].where = { id: kurum_id };
     } 
     else if (role === 'Mıntıka Yöneticisi') {
-        // YETKİ: Mıntıka Yöneticisi sadece kendi mıntıkasındaki seyahatleri görebilir.
-        // Bu sorgu, kurumun mıntıka ID'sine göre araçları filtreler.
+        // Vehicle -> Kurum -> Mintika üzerinden filtreleme
+        // include[1] = Vehicle, include[0] = Kurum
         queryOptions.include[1].include[0].where = { mintika_id: mintika_id };
-        queryOptions.include[1].required = true;
     }
-    // Not: Admin için ek bir filtre gerekmez, tüm kayıtları görür.
 
     const trips = await Trip.findAll(queryOptions);
-    return trips;
+
+    // --- VERİYİ DÜZLEŞTİRME (FLATTEN) ---
+    return trips.map(trip => {
+        const t = trip.toJSON(); // Sequelize nesnesini saf JSON'a çevir
+        
+        return {
+            id: t.id,
+            // Trip bilgileri
+            start_date: t.start_date,
+            end_date: t.end_date,
+            destination: t.destination,
+            reason: t.reason,
+            description: t.description,
+            trip_type: t.trip_type,
+            first_photo: t.first_photo,
+            last_photo: t.last_photo,
+            
+            // Kullanıcı bilgileri (Düzleştirilmiş)
+            user_id: t.user_id,
+            user_name: t.User?.name,
+
+            // Araç bilgileri (Düzleştirilmiş)
+            vehicle_id: t.vehicle_id,
+            vehicle_plate: t.Vehicle?.plate,
+            vehicle_brand: t.Vehicle?.brand,
+            vehicle_model: t.Vehicle?.model,
+
+            // Kurum ve Mıntıka bilgileri (Düzleştirilmiş)
+            kurum_name: t.Vehicle?.Kurum?.name,
+            mintika_name: t.Vehicle?.Kurum?.Mintika?.name // <--- EKLENEN VERİ
+        };
+    });
 };

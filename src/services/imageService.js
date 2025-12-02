@@ -1,5 +1,6 @@
 import sharp from "sharp";
 import { format } from "date-fns";
+import  {FileLog} from "../models/index.js";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 
 // .env'den MinIO bilgilerini al
@@ -65,9 +66,10 @@ export const imageService = async (buffer, namingData) => {
     const fileUrl = `${dataUrl}/${BUCKET}/${filename}`;
 
     console.log("✅ MinIO'ya yüklendi:", fileUrl);
-
+    
     // 8. URL'i döndür
     return fileUrl;
+  
   } catch (error) {
     console.error(`❌ Görsel işleme veya MinIO yükleme hatası (${fieldName}):`, error.message);
     throw new Error(`Resim (${fieldName}) yüklenirken bir hata oluştu. ${error.message}`);

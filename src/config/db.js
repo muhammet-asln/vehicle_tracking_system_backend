@@ -5,7 +5,7 @@ import "dotenv/config.js";
 const sequelize = new Sequelize(process.env.DATABASE_URL, { //
   dialect: 'postgres',
   protocol: 'postgres',
-  logging: false, // Konsola SQL sorgularını yazdırma
+  logging: true, // Konsola SQL sorgularını yazdırma
   
   
 });

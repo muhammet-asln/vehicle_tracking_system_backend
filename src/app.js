@@ -1,6 +1,6 @@
 import express from 'express';
 import "dotenv/config.js";
-import { userRoutes , authRoutes , kurumRoutes , mintikaRoutes, vehicleRoutes, tripRoutes } from './routes/index.js';
+import { userRoutes , authRoutes , kurumRoutes , mintikaRoutes, vehicleRoutes, tripRoutes, generalRoutes } from './routes/index.js';
 import  {applyAssociations} from './models/index.js';
 import { connectDB } from './config/db.js';
 
@@ -37,9 +37,9 @@ app.use(cors(corsOptions));
 app.get('/', (req, res) => {
   res.send('Hello World!');
 });
-
-app.use('/api/users/', userRoutes);
-app.use('/api/auth/', authRoutes);
+app.use('/api/general/', generalRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/auth', authRoutes);
 app.use('/api/mintikalar', mintikaRoutes);
 app.use('/api/kurumlar', kurumRoutes);   
 app.use('/api/vehicles', vehicleRoutes);

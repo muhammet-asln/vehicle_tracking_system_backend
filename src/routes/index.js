@@ -9,3 +9,4 @@ export { default as kurumRoutes } from './kurumRoutes.js';
 export { default as vehicleRoutes } from './vehicleRoutes.js';
 
 export { default as tripRoutes } from './tripRoutes.js';
+export { default as generalRoutes } from './generalRoutes.js';

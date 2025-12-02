@@ -1,10 +1,9 @@
 // models/file_log.js
-
+import { sequelize } from '../config/db.js';
 import { DataTypes } from 'sequelize';
 
 
 
-export default (sequelize) => {
 
   const FileLog = sequelize.define(
 
@@ -21,6 +20,12 @@ export default (sequelize) => {
         primaryKey: true,
 
       },
+      trip_id: {
+
+        type: DataTypes.BIGINT, 
+        allowNull: false,
+      },
+      
 
       type: {
 
@@ -106,7 +111,7 @@ export default (sequelize) => {
 
 
 
-  return FileLog;
+  export default FileLog;
 
-};
+
 
